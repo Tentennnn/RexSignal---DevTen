@@ -1,44 +1,92 @@
 import type { User, AnalysisRecord, Signal } from '../types';
 
-// --- Hardcoded Admin User ---
+/**
+ * --- DATABASE SIMULATION ---
+ * This file simulates a backend API using localStorage for data persistence.
+ * In a real-world production application deployed on Vercel, this would be replaced with
+ * API endpoints (e.g., Vercel Serverless Functions) that connect to a persistent database
+ * like Vercel Postgres, MongoDB Atlas, or Supabase.
+ * localStorage is used here to provide a more realistic user experience by persisting
+ * data across page reloads in the browser.
+ */
+
+const USERS_KEY = 'goldsignal_users';
+const ANALYSES_KEY = 'goldsignal_analyses';
+
+// --- Hardcoded Admin User for initial setup ---
 const adminUser: User = { 
   id: '1', 
   name: 'admin', 
   email: 'admin@goldvision.com', 
-  password: 'Kiminato@855', 
+  password: 'Kiminato@855', // In a real app, passwords must be hashed server-side.
   key: 'admin_key_super_secret', 
   status: 'VIP', 
   analysisCount: 0, 
   lastAnalysisTimestamp: new Date(0).toISOString() 
 };
 
-// --- In-memory "Database" ---
-// In a real app, this would be a database.
-let mockUsers: User[] = [adminUser];
+// --- LocalStorage Helper Functions ---
 
-// Analyses are now stored in memory and can be added by users.
-let mockAnalyses: AnalysisRecord[] = [];
+const getUsersFromStorage = (): User[] => {
+    try {
+        const storedUsers = localStorage.getItem(USERS_KEY);
+        if (storedUsers) {
+            return JSON.parse(storedUsers);
+        }
+    } catch (error) {
+        console.error("Error reading users from localStorage", error);
+    }
+    // If storage is empty or corrupted, initialize with the admin user.
+    const initialUsers = [adminUser];
+    localStorage.setItem(USERS_KEY, JSON.stringify(initialUsers));
+    return initialUsers;
+};
 
-// --- END MOCK DATABASE ---
+const saveUsersToStorage = (users: User[]) => {
+    try {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    } catch (error) {
+        console.error("Error saving users to localStorage", error);
+    }
+};
+
+const getAnalysesFromStorage = (): AnalysisRecord[] => {
+    try {
+        const storedAnalyses = localStorage.getItem(ANALYSES_KEY);
+        if (storedAnalyses) {
+            return JSON.parse(storedAnalyses);
+        }
+    } catch (error) {
+        console.error("Error reading analyses from localStorage", error);
+    }
+    // If storage is empty or corrupted, initialize with an empty array.
+    localStorage.setItem(ANALYSES_KEY, JSON.stringify([]));
+    return [];
+};
+
+const saveAnalysesToStorage = (analyses: AnalysisRecord[]) => {
+    try {
+        localStorage.setItem(ANALYSES_KEY, JSON.stringify(analyses));
+    } catch (error) {
+        console.error("Error saving analyses to localStorage", error);
+    }
+};
+
 
 // Simulate network delay
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 /**
  * The API service layer.
- * In a real application, these functions would use `fetch` to make HTTP requests
- * to a secure backend server, which would then interact with the MongoDB database.
  */
 export const api = {
   /**
    * Simulates a user login request.
-   * @param username - The user's username.
-   * @param password - The user's password.
-   * @returns The user object if credentials are valid, otherwise null.
    */
   login: async (username: string, password: string): Promise<User | null> => {
-    await delay(500); // Simulate network latency
-    const user = mockUsers.find(u => u.name.toLowerCase() === username.toLowerCase() && u.password === password);
+    await delay(500);
+    const users = getUsersFromStorage();
+    const user = users.find(u => u.name.toLowerCase() === username.toLowerCase() && u.password === password);
     if (user) {
       // Never send the password back to the client
       const { password: _, ...userToReturn } = user;
@@ -49,18 +97,15 @@ export const api = {
   
   /**
    * Simulates a new user registration.
-   * @param username - The desired username.
-   * @param email - The user's email.
-   * @param password - The user's password.
-   * @returns The newly created user object, or null if the user already exists.
    */
   register: async (username: string, email: string, password: string): Promise<User | null> => {
     await delay(500);
-    if (mockUsers.some(u => u.name.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase())) {
+    const users = getUsersFromStorage();
+    if (users.some(u => u.name.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === email.toLowerCase())) {
       return null; // User already exists
     }
     const newUser: User = {
-      id: `${mockUsers.length + 1}`,
+      id: `${users.length > 0 ? Math.max(...users.map(u => parseInt(u.id, 10))) + 1 : 1}`,
       name: username,
       email: email,
       password: password,
@@ -69,7 +114,8 @@ export const api = {
       analysisCount: 0,
       lastAnalysisTimestamp: new Date(0).toISOString(),
     };
-    mockUsers.push(newUser);
+    users.push(newUser);
+    saveUsersToStorage(users);
     const { password: _, ...userToReturn } = newUser;
     return userToReturn;
   },
@@ -85,12 +131,13 @@ export const api = {
     dailyLimit: number;
   }> => {
     await delay(100);
-    const user = mockUsers.find(u => u.id === userId);
+    const users = getUsersFromStorage();
+    const user = users.find(u => u.id === userId);
     if (!user) {
       throw new Error("User not found.");
     }
 
-    if (user.name === 'admin') {
+    if (user.name.toLowerCase() === 'admin') {
       return { canAnalyze: true, reason: null, timeLeft: null, dailyCount: user.analysisCount, dailyLimit: 999 };
     }
 
@@ -105,8 +152,13 @@ export const api = {
         lastAnalysisDate.getUTCMonth() < now.getUTCMonth() ||
         lastAnalysisDate.getUTCDate() < now.getUTCDate()) 
     {
-      const userToUpdate = mockUsers.find(u => u.id === userId);
-      if (userToUpdate) userToUpdate.analysisCount = 0;
+      const userIndex = users.findIndex(u => u.id === userId);
+      if (userIndex !== -1) {
+        users[userIndex].analysisCount = 0;
+        saveUsersToStorage(users);
+        // We need to update our local user object for the checks below
+        user.analysisCount = 0;
+      }
     }
     
     // Check daily limit
@@ -125,46 +177,49 @@ export const api = {
   },
 
   /**
-   * Simulates fetching all users for the admin dashboard.
+   * Fetches all users for the admin dashboard.
    */
   getAllUsers: async (): Promise<User[]> => {
     await delay(300);
-    return mockUsers.map(u => {
+    const users = getUsersFromStorage();
+    return users.map(u => {
       const { password, ...user } = u;
       return user;
     });
   },
 
   /**
-   * Simulates fetching all analysis records for the admin dashboard.
+   * Fetches all analysis records for the admin dashboard.
    */
   getAllAnalyses: async (): Promise<AnalysisRecord[]> => {
     await delay(300);
-    return [...mockAnalyses]; // Return a copy
+    return getAnalysesFromStorage();
   },
   
   /**
-   * Simulates fetching analysis records for a specific, authenticated user.
+   * Fetches analysis records for a specific user.
    */
   getAnalysesForUser: async (userId: string): Promise<AnalysisRecord[]> => {
     await delay(300);
-    return mockAnalyses.filter(a => a.userId === userId);
+    const analyses = getAnalysesFromStorage();
+    return analyses.filter(a => a.userId === userId);
   },
 
   /**
-   * Simulates a user adding a new analysis record.
+   * Adds a new analysis record for a user.
    */
   addAnalysis: async (userId: string, signalData: Signal): Promise<AnalysisRecord> => {
     await delay(200);
 
-    const userIndex = mockUsers.findIndex(u => u.id === userId);
+    const users = getUsersFromStorage();
+    const analyses = getAnalysesFromStorage();
+    const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex === -1) throw new Error("User not found");
 
     // Update user's analysis stats
-    const user = mockUsers[userIndex];
-    user.analysisCount += 1;
-    user.lastAnalysisTimestamp = new Date().toISOString();
-    mockUsers[userIndex] = user;
+    users[userIndex].analysisCount += 1;
+    users[userIndex].lastAnalysisTimestamp = new Date().toISOString();
+    saveUsersToStorage(users);
 
     const newAnalysis: AnalysisRecord = {
       ...signalData,
@@ -172,53 +227,55 @@ export const api = {
       userId: userId,
       timestamp: new Date().toUTCString(),
     };
-    mockAnalyses.push(newAnalysis);
+    analyses.push(newAnalysis);
+    saveAnalysesToStorage(analyses);
     
     return newAnalysis;
   },
 
   /**
-   * Simulates updating a user's properties.
+   * Updates a user's properties.
    */
   updateUser: async (userId: string, updates: Partial<User>): Promise<User | undefined> => {
     await delay(200);
-    const userIndex = mockUsers.findIndex(u => u.id === userId);
+    const users = getUsersFromStorage();
+    const userIndex = users.findIndex(u => u.id === userId);
     if (userIndex === -1) return undefined;
 
-    const currentUser = mockUsers[userIndex];
+    const currentUser = users[userIndex];
+    // Preserve the original password if a new one isn't provided in the update payload.
     const updatedUser = { ...currentUser, ...updates };
+    if (!updates.password) {
+        updatedUser.password = currentUser.password;
+    }
 
+    // Admin user cannot be demoted from VIP status.
     if (currentUser.name.toLowerCase() === 'admin') {
       updatedUser.status = 'VIP';
     }
 
-    mockUsers[userIndex] = updatedUser;
-    
-    if (updatedUser.id === adminUser.id) {
-        Object.assign(adminUser, updatedUser);
-    }
+    users[userIndex] = updatedUser;
+    saveUsersToStorage(users);
 
-    if (updatedUser) {
-        const { password, ...userToReturn } = updatedUser;
-        return userToReturn;
-    }
-    return undefined;
+    const { password, ...userToReturn } = updatedUser;
+    return userToReturn;
   },
 
   /**
-   * Simulates an admin updating an AI analysis record.
+   * Updates an AI analysis record.
    */
   updateAnalysis: async (analysisId: string, updates: Partial<AnalysisRecord>): Promise<AnalysisRecord | undefined> => {
     await delay(200);
-
+    const analyses = getAnalysesFromStorage();
     let updatedAnalysis: AnalysisRecord | undefined;
-    mockAnalyses = mockAnalyses.map(analysis => {
+    const newAnalyses = analyses.map(analysis => {
       if (analysis.id === analysisId) {
         updatedAnalysis = { ...analysis, ...updates };
         return updatedAnalysis;
       }
       return analysis;
     });
+    saveAnalysesToStorage(newAnalyses);
     return updatedAnalysis;
   }
 };

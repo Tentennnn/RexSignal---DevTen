@@ -13,7 +13,7 @@ interface HeaderProps {
 
 const translations = {
   en: {
-    title: 'Gold Vision',
+    title: 'RexSignal',
     dashboard: 'Dashboard',
     vip: 'VIP Signals',
     admin: 'Admin',
@@ -22,7 +22,7 @@ const translations = {
     settings: 'Settings',
   },
   km: {
-    title: 'គោលដៅមាស',
+    title: 'RexSignal',
     dashboard: 'ផ្ទាំងគ្រប់គ្រង',
     vip: 'សញ្ញា VIP',
     admin: 'អ្នកគ្រប់គ្រង',

@@ -4,7 +4,7 @@ import { api } from '../services/api';
 
 const translations = {
   en: {
-    title: 'Welcome to Gold Vision',
+    title: 'Welcome to RexSignal',
     subtitleLogin: 'Login to your account',
     subtitleSignup: 'Create a new account',
     username: 'Username',
@@ -19,7 +19,7 @@ const translations = {
     userExistsError: 'A user with that name or email already exists.',
   },
   km: {
-    title: 'សូមស្វាគមន៍មកកាន់ Gold Vision',
+    title: 'សូមស្វាគមន៍មកកាន់ RexSignal',
     subtitleLogin: 'ចូលគណនីរបស់អ្នក',
     subtitleSignup: 'បង្កើតគណនីថ្មី',
     username: 'ឈ្មោះ​អ្នកប្រើប្រាស់',
