@@ -20,12 +20,13 @@ const signalSchema = {
         analysis: {
             type: Type.OBJECT,
             properties: {
+                ictConcept: { type: Type.STRING, description: "Analysis using Inner Circle Trader (ICT) concepts like Fair Value Gaps, Order Blocks, and Liquidity." },
                 rsi: { type: Type.STRING, description: "Analysis of the Relative Strength Index." },
                 ema: { type: Type.STRING, description: "Analysis of Exponential Moving Averages." },
                 macd: { type: Type.STRING, description: "Analysis of the MACD indicator." },
                 supportResistance: { type: Type.STRING, description: "Analysis of key support and resistance levels." },
             },
-            required: ["rsi", "ema", "macd", "supportResistance"],
+            required: ["ictConcept", "rsi", "ema", "macd", "supportResistance"],
         },
         entry: { type: Type.NUMBER, description: "Suggested entry price." },
         stopLoss: { type: Type.NUMBER, description: "Suggested stop loss price." },
@@ -61,7 +62,7 @@ export const getSignalRecommendationFromImage = async ({ imageData, balance, lot
             - Account Leverage: ${leverage}
             - Risk Percentage per trade: ${risk}%
     
-            Your analysis should be comprehensive, including technical indicators, key price levels, and a summary of your reasoning based SOLELY on the image. Identify a realistic current price from the screenshot for your analysis. Ensure the suggested stop-loss aligns with the user's risk percentage. Your response must be in JSON format.`
+            Your analysis should be comprehensive, including analysis of Inner Circle Trader (ICT) concepts (like Fair Value Gaps, Order Blocks, Liquidity), RSI, EMA, MACD, and key support/resistance levels. Your summary should be based SOLELY on the image. Identify a realistic current price from the screenshot for your analysis. Ensure the suggested stop-loss aligns with the user's risk percentage. Your response must be in JSON format.`
         };
 
         const response = await ai.models.generateContent({

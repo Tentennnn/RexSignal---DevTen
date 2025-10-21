@@ -9,6 +9,7 @@ export interface Signal {
   timeframe: 'Scalp' | 'Intraday' | 'Swing';
   summary: string;
   analysis: {
+    ictConcept: string;
     rsi: string;
     ema: string;
     macd: string;
