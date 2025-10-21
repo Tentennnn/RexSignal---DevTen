@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { getSignalRecommendationFromImage } from '../services/geminiService';
 import { api } from '../services/api';
@@ -48,16 +49,19 @@ const translations = {
     cooldown: 'On Cooldown. Analyze again in:',
     limitReached: 'You have reached your daily analysis limit.',
     usage: 'Usage Today:',
+    copySignal: 'Copy Signal',
+    copySignalLocked: 'COPY 🔐',
+    copied: 'Copied!',
   },
   km: {
-    title: 'การวิភាគสัญญาน AI',
+    title: 'ការវិភាគសញ្ញា AI',
     generating: 'កំពុងបង្កើតសញ្ញា...',
-    error: 'การទាញយកសញ្ញាបរាជ័យ។ សូម​ព្យាយាម​ម្តង​ទៀត។',
+    error: 'ការទាញយកសញ្ញាបរាជ័យ។ សូម​ព្យាយាម​ម្តង​ទៀត។',
     confidence: 'ទំនុកចិត្ត',
     entry: 'តម្លៃចូល',
     stopLoss: 'បញ្ឈប់ការខាតបង់',
     takeProfit: 'យកប្រាក់ចំណេញ',
-    analysis: 'การវិភាគសូចនាកร',
+    analysis: 'ការវិភាគសូចនាករ',
     buy: 'ទិញ',
     sell: 'លក់',
     wait: 'រង់ចាំ',
@@ -91,8 +95,11 @@ const translations = {
     },
     // Usage Limit translations
     cooldown: 'កំពុងរង់ចាំ។ វិភាគម្តងទៀតក្នុងរយៈពេល៖',
-    limitReached: 'អ្នកបានដល់ដែនកំណត់នៃការវិភាគប្រចាំថ្ងៃរបស់អ្នកแล้ว។',
+    limitReached: 'អ្នកបានដល់ដែនកំណត់នៃការវិភាគប្រចាំថ្ងៃរបស់អ្នកហើយ។',
     usage: 'ការប្រើប្រាស់ថ្ងៃនេះ៖',
+    copySignal: 'ចម្លងសញ្ញា',
+    copySignalLocked: 'ចម្លង 🔐',
+    copied: 'បានចម្លង!',
   },
 };
 
@@ -111,8 +118,26 @@ const LoadingIndicator: React.FC<{ message: string }> = ({ message }) => (
     </div>
 );
 
-const SignalResultDisplay: React.FC<{ signal: Signal; language: Language; onAnalyzeAgain: () => void }> = ({ signal, language, onAnalyzeAgain }) => {
+const SignalResultDisplay: React.FC<{ signal: Signal; language: Language; onAnalyzeAgain: () => void; user: User | null; }> = ({ signal, language, onAnalyzeAgain, user }) => {
     const t = translations[language];
+    const [copyButtonText, setCopyButtonText] = useState(t.copySignal);
+
+    useEffect(() => {
+        setCopyButtonText(t.copySignal);
+    }, [signal, t.copySignal]);
+
+    const isAdmin = user?.name.toLowerCase() === 'admin';
+
+    const handleCopy = () => {
+        if (!isAdmin) return;
+        const signalText = `🟡 XAUUSD : ${signal.signal}\n\n🟢 ENTRY : ${signal.entry.toFixed(2)}\n🔴 STOPLOSS : ${signal.stopLoss.toFixed(2)}\n\n🔵 TARGET 1 : ${signal.takeProfit1.toFixed(2)}\n🔵 TARGET 2 : ${signal.takeProfit2.toFixed(2)}`;
+        navigator.clipboard.writeText(signalText).then(() => {
+            setCopyButtonText(t.copied);
+            setTimeout(() => {
+                setCopyButtonText(t.copySignal);
+            }, 2000);
+        });
+    };
 
     const getConfidenceInfo = (value: number) => {
         if (value >= 85) return { text: t.confidenceLevels.veryHigh, color: "from-green-500 to-green-400", textColor: "text-green-300" };
@@ -240,9 +265,22 @@ const SignalResultDisplay: React.FC<{ signal: Signal; language: Language; onAnal
               </div>
             </div>
 
-            <button onClick={onAnalyzeAgain} className="w-full bg-dark-tertiary text-gold-300 font-bold py-3 px-4 rounded-lg hover:bg-gray-700 transition-all duration-300 border border-gold-800">
-                {t.analysisAgain}
-            </button>
+            <div className="flex flex-col md:flex-row gap-4">
+                <button onClick={onAnalyzeAgain} className="flex-1 bg-dark-tertiary text-gold-300 font-bold py-3 px-4 rounded-lg hover:bg-gray-700 transition-all duration-300 border border-gold-800">
+                    {t.analysisAgain}
+                </button>
+                <button
+                    onClick={handleCopy}
+                    disabled={!isAdmin}
+                    className={`flex-1 font-bold py-3 px-4 rounded-lg transition-all duration-300 ${
+                        isAdmin
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                >
+                    {isAdmin ? copyButtonText : t.copySignalLocked}
+                </button>
+            </div>
         </div>
     );
 };
@@ -489,7 +527,7 @@ const SignalPanel: React.FC<{ language: Language, user: User | null }> = ({ lang
       {error && <div className="text-center p-8 text-red-500">{error}</div>}
       
       {signal && !loading && !error && (
-        <SignalResultDisplay signal={signal} language={language} onAnalyzeAgain={handleAnalyzeAgain} />
+        <SignalResultDisplay signal={signal} language={language} onAnalyzeAgain={handleAnalyzeAgain} user={user} />
       )}
       
       {!loading && !signal && (
