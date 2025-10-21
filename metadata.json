@@ -1,0 +1,5 @@
+{
+  "name": "RexSignal — Forex XAU/USD Analysis",
+  "description": "A Forex Analysis Website for Gold (XAU/USD) that provides live market analysis, buy/sell recommendations, and chart insights using Gemini AI.",
+  "requestFramePermissions": []
+}
